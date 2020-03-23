@@ -15,5 +15,3 @@ The original C version of Primer3 is [here](https://github.com/primer3-org/prime
 ## TODO
 
 Add oligotm() function.
-
-Put thermodynamic parameters in Java property files instead of ThalParameters.java.

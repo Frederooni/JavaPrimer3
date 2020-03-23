@@ -1,15 +1,3 @@
-package fred.bio.primer3;
-
-/* Converted to Java by Fred Long */
-
-import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-
-import static java.lang.Math.*;
-import static java.util.Arrays.binarySearch;
-
 /*
  Copyright (c) 1996,1997,1998,1999,2000,2001,2004,2006,2007,2009,2010,
                2011,2012
@@ -47,6 +35,18 @@ import static java.util.Arrays.binarySearch;
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* Converted to Java by Fred Long */
+
+package fred.bio.primer3;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+
+import static java.lang.Math.*;
+import static java.util.Arrays.binarySearch;
 
 public class Thal {
 
@@ -120,7 +120,7 @@ public class Thal {
         /** Informational message */
         String msg;
         /** Melting temperature in Celsius */
-        double temp;
+        public double temp;
         /** Delta G (\u0394G) */
         double delta_G;
         /** Delta H (\u0394H) */
@@ -176,6 +176,8 @@ public class Thal {
     /** the maximum size of loop that can be calculated; for larger loops formula must be implemented */
     private static final int MAX_LOOP = 30;
     private static final char BASES[] = {'A', 'C', 'G', 'T', 'N'}; /* bases to be considered - N is every symbol that is not A, G, C,$
+    /** default thermodynamic parameters */
+    private static ThalParameters defaultParameters = new ThalParameters();
 
     /** matrix for allowed; bp 0 - no bp, watson crick bp - 1 */
     private static final int BPI[][] = {
@@ -193,7 +195,10 @@ public class Thal {
         byte loop[];
         double value;
         loop(int size) {
-            loop = new byte[size];
+            this.loop = new byte[size];
+        }
+        loop(byte[] loop) {
+            this.loop = loop;
         }
     }
 
@@ -218,6 +223,8 @@ public class Thal {
     }
 
     /* END STRUCTs */
+
+    private static ThreadLocal<Thal> thalHolder = new ThreadLocal<>();
 
     /** AT penalty */
     private double atPenaltyS[][] = new double[5][5];
@@ -298,9 +305,16 @@ public class Thal {
     private tetraloop tetraloopEntropies[] = null;
     /** ther penalties for given tetraloop seq-s */
     private tetraloop tetraloopEnthalpies[] = null;
+    /** the current set to thermodynamic parameters */
+    private ThalParameters thal_parameters;
 
     /** Create Thal instance with the given thermodynamic parameters. */
     public Thal(ThalParameters tp) throws Exception {
+        get_thermodynamic_values(tp);
+    }
+
+    public void get_thermodynamic_values(ThalParameters tp) throws Exception {
+        this.thal_parameters = tp;
         /* Read the thermodynamic values (parameters) from the parameter files
            in the directory specified by 'path'.  Return 0 on success and -1
            on error. The thermodynamic values are stored in multiple static
@@ -323,11 +337,40 @@ public class Thal {
 
     /** Create Thal instance with default thermodynamic parameters. */
     public Thal() throws Exception {
-        this(new ThalParameters());
+        this(defaultParameters);
+    }
+
+    /** Creates a thread-local instance of Thal for the current thread. */
+    public static Thal getThreadLocalThal() throws Exception {
+        Thal thal = thalHolder.get();
+        if (thal == null) {
+            thal = new Thal();
+            thalHolder.set(thal);
+        }
+        return thal;
+    }
+
+    /** Creates a thread-local instance of Thal for the current thread. */
+    public static Thal getThreadLocalThal(ThalParameters p) throws Exception {
+        Thal thal = thalHolder.get();
+        if (thal == null) {
+            thal = new Thal(p);
+            thalHolder.set(thal);
+        }
+        if (thal.thal_parameters != p) thal.get_thermodynamic_values(p);
+        return thal;
     }
 
     /**
-     * central method: execute all sub-methods for calculating secondary structure for dimer or for monomer
+     * Computes the melting temperature, secondary structure, and other thermodynamic values for the two oligos.
+     * If calculating hairpins, oligo_r should be the same as oligo_l.
+     * <p>
+     * This method is not thread-safe.  To call this method from multiple threads, create a separate
+     * Thal instance for each thread, or use {@link #getThreadLocalThal()}, which will return a thread-local
+     * instance of Thal for the current thread.  Usage example:
+     * <pre>
+     *     Thal.getThreadLocalThal.thal(oligo_l, oligo_r, args);
+     * </pre>
      */
     public ThalResults thal(String oligo_f, String oligo_r, ThalArgs a) throws RuntimeException {
         CHECK_ERROR(null == a, "null args");
@@ -574,37 +617,6 @@ public class Thal {
     private String reverse(String s) {
         StringBuilder sb = new StringBuilder(s);
         return sb.reverse().toString();
-    }
-
-    int INIT_BUF_SIZE = 1024;
-
-    /** Return the contents of the parameter file as a string. */
-    private String readParamFile(final String dirname, final String fname) throws IOException {
-        FileReader is = new FileReader(new File(dirname, fname));
-        char[] buffer = new char[256];
-        int c;
-        StringBuilder sb = new StringBuilder();
-        while ((c = is.read(buffer)) >= 0) sb.append(buffer, 0, c);
-        return sb.toString();
-    }
-
-    void thal_load_parameters(String path, ThalParameters a) throws IOException {
-        a.dangle_dh = readParamFile(path, "dangle.dh");
-        a.dangle_ds = readParamFile(path, "dangle.ds");
-        a.loops_dh = readParamFile(path, "loops.dh");
-        a.loops_ds = readParamFile(path, "loops.ds");
-        a.stack_dh = readParamFile(path, "stack.dh");
-        a.stack_ds = readParamFile(path, "stack.ds");
-        a.stackmm_dh = readParamFile(path, "stackmm.dh");
-        a.stackmm_ds = readParamFile(path, "stackmm.ds");
-        a.tetraloop_dh = readParamFile(path, "tetraloop.dh");
-        a.tetraloop_ds = readParamFile(path, "tetraloop.ds");
-        a.triloop_dh = readParamFile(path, "triloop.dh");
-        a.triloop_ds = readParamFile(path, "triloop.ds");
-        a.tstack_tm_inf_ds = readParamFile(path, "tstack_tm_inf.ds");
-        a.tstack_dh = readParamFile(path, "tstack.dh");
-        a.tstack2_dh = readParamFile(path, "tstack2.dh");
-        a.tstack2_ds = readParamFile(path, "tstack2.ds");
     }
 
     /**
@@ -914,17 +926,16 @@ public class Thal {
         atPenaltyH[0][3] = atPenaltyH[3][0] = atp_value;
     }
 
-    private Comparator<? super Object> loopComparator = new Comparator<Object>() {
+    private Comparator<? super loop> loopComparator = new Comparator<loop>() {
         @Override
-        public int compare(Object o, Object t1) {
-            byte[] loop1 = (byte[]) o;
-            byte[] loop2 = ((loop) t1).loop;
+        public int compare(loop o, loop t1) {
+            byte[] loop1 = o.loop;
+            byte[] loop2 = t1.loop;
             for (int i = 0; i < loop2.length; ++i) {
                 if (loop1[i] < loop2[i]) return -1;
                 else if (loop1[i] > loop2[i]) return 1;
             }
             return 0;
-
         }
     };
 
@@ -1469,7 +1480,7 @@ public class Thal {
 
         if (loopSize == 3) {         /* closing AT-penalty (+), triloop bonus, hairpin of 3 (+) */
             if (numTriloops > 0) {
-                byte[] key = Arrays.copyOfRange(numSeq1, i, i + 5);
+                loop key = new loop(Arrays.copyOfRange(numSeq1, i, i + 5));
                 int index = -1;
                 if ((index = binarySearch(triloopEnthalpies, key, loopComparator)) >= 0)
                     EntropyEnthalpy[1] += triloopEnthalpies[index].value;
@@ -1478,7 +1489,7 @@ public class Thal {
             }
         } else if (loopSize == 4) { /* terminal mismatch, tetraloop bonus, hairpin of 4 */
             if (numTetraloops > 0) {
-                byte[] key = Arrays.copyOfRange(numSeq1, i, i + 6);
+                loop key = new loop(Arrays.copyOfRange(numSeq1, i, i + 6));
                 int index = -1;
                 if ((index = binarySearch(tetraloopEnthalpies, key, loopComparator)) >= 0)
                     EntropyEnthalpy[1] += tetraloopEnthalpies[index].value;
