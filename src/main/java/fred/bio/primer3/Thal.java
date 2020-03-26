@@ -118,19 +118,19 @@ public class Thal {
     /* Structure for receiving results from the thermodynamic alignment calculation */
     public static class ThalResults {
         /** Informational message */
-        String msg;
+        public String msg;
         /** Melting temperature in Celsius */
         public double temp;
         /** Delta G (\u0394G) */
-        double delta_G;
+        public double delta_G;
         /** Delta H (\u0394H) */
-        double delta_H;
+        public double delta_H;
         /** Delta S (\u0394S) */
-        double delta_S;
-        int align_end_1;
-        int align_end_2;
+        public double delta_S;
+        public int align_end_1;
+        public int align_end_2;
         /** Secondary structure */
-        String sec_struct;
+        public String sec_struct;
     }
 
     /**
