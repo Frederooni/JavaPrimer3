@@ -110,6 +110,7 @@ public class Thal {
         /**
          * Kelvin temperature from which hairpin structures will be calculated (default 310.15 K, 37 C)
          */
+        // TODO: This is only used in three places, but TEMP_KELVIN is used in most places.
         public double temp = TEMP_KELVIN;
         /** calculate dimer structure (no longer used) */
         public boolean dimer = true;
@@ -171,8 +172,10 @@ public class Thal {
     /** structures w higher G are considered to be unstabile */
     private static final double G2 = 0.0;
     private static final double ABSOLUTE_ZERO = 273.15;
-    /** 310.15 Kelvin is 37 Celsius */
-    private static final double TEMP_KELVIN = 310.15;
+    /**
+     * Kelvin temperature from which hairpin structures will be calculated (default 310.15 K, 37 C)
+     */
+    private static final double TEMP_KELVIN = 37 + ABSOLUTE_ZERO;
     /** the maximum size of loop that can be calculated; for larger loops formula must be implemented */
     private static final int MAX_LOOP = 30;
     private static final char BASES[] = {'A', 'C', 'G', 'T', 'N'}; /* bases to be considered - N is every symbol that is not A, G, C,$
@@ -494,7 +497,7 @@ public class Thal {
             oligo1 = null;
             oligo2 = null;
             return o;
-        } else if (a.type != THAL_HAIRPIN) { /* Hybridization of two moleculs */
+        } else if (a.type != THAL_HAIRPIN) { /* Hybridization of two molecules */
             len3 = len2;
             initMatrix();
             fillMatrix(a.maxLoop, o);
